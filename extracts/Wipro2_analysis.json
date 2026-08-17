@@ -1,0 +1,35 @@
+{
+  "financial_metrics": [
+    {
+      "metric": "example metric",
+      "value": "actual value",
+      "period": "actual period",
+      "context": "actual context"
+    }
+  ],
+  "forward_looking_statements": [
+    {
+      "statement": "actual statement",
+      "timeframe": "actual timeframe",
+      "confidence": "high/medium/low based on tone"
+    }
+  ],
+  "risk_factors": [
+    {
+      "risk": "actual risk",
+      "mitigation_mentioned": true,
+      "severity_indicator": "actual severity"
+    }
+  ],
+  "management_emphasis": [
+    "actual topic1",
+    "actual topic2"
+  ],
+  "key_quotes": [
+    {
+      "quote": "actual quote from text",
+      "speaker": "actual speaker name",
+      "relevance": "actual relevance"
+    }
+  ]
+}
