@@ -59,8 +59,5 @@ python src/main.py --task deep_qa --doc_type concalls --file path/to/transcript.
 ## 🔒 Security
 All sensitive information, such as `.env` files, cache data, and the `private/` workspace directory, are excluded via `.gitignore` to ensure they are never published publicly.
 
-## 🤝 Freelance & Contracting
-I am currently available for freelance projects and contracting roles. If you are looking to build custom AI agents, automate financial workflows, or develop enterprise-grade Python solutions, feel free to reach out!
-
 ---
 *Built with precision for modern Equity Research.*
