@@ -69,7 +69,6 @@ Transcript Cover Page:
             # Create the target directory: data/concalls/Wipro/
             target_dir = os.path.join(self.base_data_dir, company)
             os.makedirs(target_dir, exist_ok=True)
-            
             target_path = os.path.join(target_dir, new_filename)
             
             # If the file is already exactly there, do nothing

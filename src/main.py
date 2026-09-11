@@ -47,6 +47,7 @@ def run_deep_qa(structured_chunks: dict, output_path: str, overwrite: bool = Fal
     md_output_path = json_output_path.replace('.json', '_report.md')
     qa_sessions = structured_chunks.get("qa_sessions", [])
     
+    existing_data = []
     if not overwrite and os.path.exists(md_output_path) and os.path.exists(json_output_path):
         # Auto-Resume Logic: Check if the report is actually complete
         try:
@@ -58,15 +59,24 @@ def run_deep_qa(structured_chunks: dict, output_path: str, overwrite: bool = Fal
             else:
                 print(f"\n[!] {md_output_path} is INCOMPLETE ({len(existing_data)}/{len(qa_sessions)} analysts). Auto-resuming extraction...")
         except Exception:
-            pass # If JSON is corrupted, we just proceed and overwrite
-    
-    print(f"[*] Sending {len(qa_sessions)} Q&A blocks to AI Analyzer for deep extraction...")
+            existing_data = [] # If JSON is corrupted, start fresh
+            
+    # Track which analysts we already have data for
+    processed_analysts = {str(item.get("analyst_name")).strip().lower() for item in existing_data if item and isinstance(item, dict) and "analyst_name" in item}
     
     qa_extractor = QADeepExtractor()
-    all_interactions = []
+    all_interactions = list(existing_data) # Keep the good data we already extracted
+    
+    print(f"[*] Sending {len(qa_sessions) - len(processed_analysts)} missing Q&A blocks to AI Analyzer...")
     
     for i, qa in enumerate(qa_sessions):
         analyst = qa["analyst"]
+        analyst_clean = str(analyst).strip().lower()
+        
+        if analyst_clean in processed_analysts:
+            print(f"    -> Skipping {analyst} (Already Extracted in JSON)")
+            continue
+            
         print(f"    -> Extracting Q&A pairs for {analyst} ({i+1}/{len(qa_sessions)})")
         try:
             interaction_result = qa_extractor.analyze_qa_session(analyst, qa["discussion"])
@@ -111,8 +121,34 @@ def main():
     parser.add_argument('--output-dir', required=False, default="extracts/concalls", help="Base directory for auto-routed extracts.")
     parser.add_argument('--task', choices=['financial_report', 'deep_qa', 'all'], default='all', help="Which extraction task to run.")
     parser.add_argument('--overwrite', action='store_true', help="Force overwrite existing reports.")
+    parser.add_argument('--compare', action='store_true', help="Run the multi-concall comparison tool.")
+    parser.add_argument('--pdf1', required=False, help="First PDF to compare (e.g. data/concalls/Wipro/Wipro_Q3.pdf)")
+    parser.add_argument('--pdf2', required=False, help="Second PDF to compare (e.g. data/concalls/Wipro/Wipro_Q4.pdf)")
     
     args = parser.parse_args()
+    
+    if args.compare:
+        if not args.pdf1 or not args.pdf2:
+            print("[!] You must provide both --pdf1 and --pdf2 to run a comparison.")
+            sys.exit(1)
+            
+        comp1 = os.path.basename(os.path.dirname(args.pdf1))
+        base1 = os.path.splitext(os.path.basename(args.pdf1))[0]
+        json1 = os.path.join(args.output_dir, comp1, base1, base1 + "_data.json")
+        
+        comp2 = os.path.basename(os.path.dirname(args.pdf2))
+        base2 = os.path.splitext(os.path.basename(args.pdf2))[0]
+        json2 = os.path.join(args.output_dir, comp2, base2, base2 + "_data.json")
+        
+        if not os.path.exists(json1) or not os.path.exists(json2):
+            print(f"[!] Cannot compare. Make sure BOTH PDFs have been fully processed first.")
+            sys.exit(1)
+            
+        from documents.concalls.comparator import ConcallComparator
+        comparator = ConcallComparator()
+        output_report = os.path.join(args.output_dir, comp2, f"{base1}_vs_{base2}_comparison.md")
+        comparator.generate_comparison_report(json1, json2, output_report)
+        sys.exit(0)
 
     if not args.pdf and not args.input_dir:
         print("You must provide either --pdf or --input-dir")

@@ -42,30 +42,44 @@ class APIClient:
                 google_model_name = target_model.split("/")[1]
                 genai_model = genai.GenerativeModel(google_model_name)
                 
-                system_instruction = "You are a Senior Equity Research Analyst. Return strictly JSON data that matches the requested schema."
-                full_prompt = f"{system_instruction}\n\nSchema:\n{schema_class.model_json_schema()}\n\n{prompt}"
-                
-                response = genai_model.generate_content(
-                    full_prompt,
-                    generation_config=genai.GenerationConfig(
-                        response_mime_type="application/json",
-                        temperature=0.1
+                if schema_class:
+                    system_instruction = "You are a Senior Equity Research Analyst. Return strictly JSON data that matches the requested schema."
+                    full_prompt = f"{system_instruction}\n\nSchema:\n{schema_class.model_json_schema()}\n\n{prompt}"
+                    response = genai_model.generate_content(
+                        full_prompt,
+                        generation_config=genai.GenerationConfig(
+                            response_mime_type="application/json",
+                            temperature=0.1
+                        )
                     )
-                )
+                else:
+                    system_instruction = "You are a Senior Equity Research Analyst."
+                    full_prompt = f"{system_instruction}\n\n{prompt}"
+                    response = genai_model.generate_content(full_prompt)
+                    
                 return response.text
             else:
                 if not os.environ.get("OPENROUTER_API_KEY"):
                     raise HardQuotaError(f"Missing API Key for {target_model}")
                     
-                response = litellm.completion(
-                    model=target_model,
-                    messages=[
-                        {"role": "system", "content": "You are a highly analytical Senior Equity Research Analyst. Extract the requested data accurately."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    response_format=schema_class,
-                    temperature=0.1
-                )
+                messages = [
+                    {"role": "system", "content": "You are a highly analytical Senior Equity Research Analyst."},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                if schema_class:
+                    response = litellm.completion(
+                        model=target_model,
+                        messages=messages,
+                        response_format=schema_class,
+                        temperature=0.1
+                    )
+                else:
+                    response = litellm.completion(
+                        model=target_model,
+                        messages=messages,
+                        temperature=0.7
+                    )
                 return response.choices[0].message.content
                 
         except Exception as e:
@@ -80,7 +94,7 @@ class APIClient:
                 raise e
 
     def extract_structured_json(self, prompt: str, schema_class, model: str = None) -> str:
-        schema_name = schema_class.__name__
+        schema_name = schema_class.__name__ if schema_class else "RawText"
         
         # Check Cache First!
         cached_response = self.cache.get_cached_response(prompt, schema_name)
